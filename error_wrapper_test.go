@@ -1,4 +1,4 @@
-package errors
+package goerrors
 
 import (
 	"errors"
@@ -9,19 +9,34 @@ import (
 func TestNewError(t *testing.T) {
 	rootError := errors.New("some error here")
 
-	state := map[string]interface{}{
-		"some":      "value",
-		"int_value": 1234,
-	}
-
-	ew := NewError(rootError, state).(*errorWrapper)
+	ew := NewError(rootError).(*errorWrapper)
 
 	if ew.rootError != rootError {
 		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), ew.Error())
 	}
 
-	if len(ew.errorStack) != 1 {
-		t.Errorf("FAILED: stack size should be 1 got '%d'", len(ew.errorStack))
+	if len(ew.errorStackTrace.Items) != 1 {
+		t.Errorf("FAILED: stack size should be 1 got '%d'", len(ew.errorStackTrace.Items))
+	}
+
+	t.Log("SUCCESS!")
+}
+func TestNewErrorWithState(t *testing.T) {
+	rootError := errors.New("some error here")
+
+	state := map[string]interface{}{
+		"some":      "value",
+		"int_value": 1234,
+	}
+
+	ew := NewErrorWithState(rootError, state).(*errorWrapper)
+
+	if ew.rootError != rootError {
+		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), ew.Error())
+	}
+
+	if len(ew.errorStackTrace.Items) != 1 {
+		t.Errorf("FAILED: stack size should be 1 got '%d'", len(ew.errorStackTrace.Items))
 	}
 
 	for key, value := range state {
@@ -50,8 +65,8 @@ func TestNewErrorWithInvalidError(t *testing.T) {
 		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), castEw.Error())
 	}
 
-	if len(castEw.errorStack) != 1 {
-		t.Errorf("FAILED: stack size should be 1 got '%d'", len(castEw.errorStack))
+	if len(castEw.errorStackTrace.Items) != 1 {
+		t.Errorf("FAILED: stack size should be 1 got '%d'", len(castEw.errorStackTrace.Items))
 	}
 
 	t.Log("SUCCESS!")
@@ -79,32 +94,32 @@ func TestWrapError(t *testing.T) {
 		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), ew.Error())
 	}
 
-	if len(ew.errorStack) != 3 {
-		t.Errorf("FAILED: stack size should be 3 got '%d'", len(ew.errorStack))
+	if len(ew.errorStackTrace.Items) != 3 {
+		t.Errorf("FAILED: stack size should be 3 got '%d'", len(ew.errorStackTrace.Items))
 	}
 
-	if !strings.HasSuffix(ew.errorStack[0].file, fileNameFn1) {
-		t.Errorf("FAILED: first stack item file name should be '%s' got '%s'", fileNameFn1, ew.errorStack[0].file)
+	if !strings.HasSuffix(ew.errorStackTrace.Items[0].File, fileNameFn1) {
+		t.Errorf("FAILED: first stack item file name should be '%s' got '%s'", fileNameFn1, ew.errorStackTrace.Items[0].File)
 	}
 
-	if ew.errorStack[0].line != lineFn1 {
-		t.Errorf("FAILED: first stack item line should be '%d' got '%d'", lineFn1, ew.errorStack[0].line)
+	if ew.errorStackTrace.Items[0].Line != lineFn1 {
+		t.Errorf("FAILED: first stack item line should be '%d' got '%d'", lineFn1, ew.errorStackTrace.Items[0].Line)
 	}
 
-	if !strings.HasSuffix(ew.errorStack[1].file, fileNameFn2) {
-		t.Errorf("FAILED: second stack item file name should be '%s' got '%s'", fileNameFn2, ew.errorStack[1].file)
+	if !strings.HasSuffix(ew.errorStackTrace.Items[1].File, fileNameFn2) {
+		t.Errorf("FAILED: second stack item file name should be '%s' got '%s'", fileNameFn2, ew.errorStackTrace.Items[1].File)
 	}
 
-	if ew.errorStack[1].line != lineFn2 {
-		t.Errorf("FAILED: second stack item line should be '%d' got '%d'", lineFn2, ew.errorStack[1].line)
+	if ew.errorStackTrace.Items[1].Line != lineFn2 {
+		t.Errorf("FAILED: second stack item line should be '%d' got '%d'", lineFn2, ew.errorStackTrace.Items[1].Line)
 	}
 
-	if !strings.HasSuffix(ew.errorStack[2].file, fileNameFn3) {
-		t.Errorf("FAILED: third stack item file name should be '%s' got '%s'", fileNameFn3, ew.errorStack[2].file)
+	if !strings.HasSuffix(ew.errorStackTrace.Items[2].File, fileNameFn3) {
+		t.Errorf("FAILED: third stack item file name should be '%s' got '%s'", fileNameFn3, ew.errorStackTrace.Items[2].File)
 	}
 
-	if ew.errorStack[2].line != lineFn3 {
-		t.Errorf("FAILED: third stack item line should be '%d' got '%d'", lineFn3, ew.errorStack[2].line)
+	if ew.errorStackTrace.Items[2].Line != lineFn3 {
+		t.Errorf("FAILED: third stack item line should be '%d' got '%d'", lineFn3, ew.errorStackTrace.Items[2].Line)
 	}
 
 	for key, value := range state {
@@ -121,9 +136,7 @@ func TestWrapError(t *testing.T) {
 func TestError(t *testing.T) {
 	rootError := errors.New("some error here")
 
-	state := map[string]interface{}{}
-
-	ew := NewError(rootError, state)
+	ew := NewError(rootError)
 
 	if ew.Error() != rootError.Error() {
 		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), ew.Error())
@@ -132,21 +145,7 @@ func TestError(t *testing.T) {
 	t.Log("SUCCESS!")
 }
 
-func TestRootError(t *testing.T) {
-	rootError := errors.New("some error here")
-
-	state := map[string]interface{}{}
-
-	ew := NewError(rootError, state).(*errorWrapper)
-
-	if ew.RootError() != rootError {
-		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", rootError.Error(), ew.Error())
-	}
-
-	t.Log("SUCCESS!")
-}
-
-func TestStackTrace(t *testing.T) {
+func TestErrorString(t *testing.T) {
 	rootError := errors.New("some error here")
 	state := map[string]interface{}{
 		"some":      "value",
@@ -155,7 +154,7 @@ func TestStackTrace(t *testing.T) {
 
 	ew := f3(rootError, state).(*errorWrapper)
 
-	traceMessage := ew.StackTrace()
+	traceMessage := ew.String()
 
 	expectedErrorHeader := "Error: 'some error here'"
 
@@ -198,6 +197,70 @@ func TestStackTrace(t *testing.T) {
 
 	if !strings.Contains(traceMessage, expectedFileNameAndLine3) {
 		t.Errorf("FAILED: stack item 3 not found")
+	}
+
+	t.Log("SUCCESS!")
+}
+
+func TestRootWithErrorWrapper(t *testing.T) {
+	err := errors.New("some error here")
+
+	ew := NewError(err).(*errorWrapper)
+
+	rerr := RootError(ew)
+
+	if rerr != err {
+		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", err.Error(), rerr.Error())
+	}
+
+	t.Log("SUCCESS!")
+}
+
+func TestRootWithError(t *testing.T) {
+	err := errors.New("some error here")
+
+	rerr := RootError(err)
+
+	if rerr != err {
+		t.Errorf("FAILED: Wrong Root error, expected '%s' got '%s'", err.Error(), rerr.Error())
+	}
+
+	t.Log("SUCCESS!")
+}
+
+func TestBuildStacktraceWithErrorWrapper(t *testing.T) {
+	err := errors.New("some error here")
+
+	ew := NewError(err).(*errorWrapper)
+
+	msg := BuildStackTrace(ew)
+
+	expectedErrorHeader := "Error: 'some error here'"
+	expectedStateHeader := "State:"
+	expectedStackHeader := "Stack Trace:"
+
+	if !strings.Contains(msg, expectedErrorHeader) {
+		t.Errorf("FAILED: Error header not found")
+	}
+
+	if !strings.Contains(msg, expectedStateHeader) {
+		t.Errorf("FAILED: state header not found")
+	}
+
+	if !strings.Contains(msg, expectedStackHeader) {
+		t.Errorf("FAILED: stack trace header not found")
+	}
+
+	t.Log("SUCCESS!")
+}
+
+func TestBuildStacktraceWithError(t *testing.T) {
+	err := errors.New("some error here")
+
+	msg := BuildStackTrace(err)
+
+	if err.Error() != msg {
+		t.Errorf("FAILED: Wrong StackTrace message error, expected '%s' got '%s'", err.Error(), msg)
 	}
 
 	t.Log("SUCCESS!")

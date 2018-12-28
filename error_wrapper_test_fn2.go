@@ -1,4 +1,4 @@
-package errors
+package goerrors
 
 func f2(err error, state map[string]interface{}) error {
 	e := f1(err, state)

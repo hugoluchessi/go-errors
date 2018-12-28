@@ -1,4 +1,4 @@
-package errors
+package goerrors
 
 import (
 	"fmt"
@@ -9,37 +9,24 @@ const (
 	ErrorHeaderFormat     = "Error: '%s'\n"
 	ErrorStateHeader      = "State:\n"
 	ErrorStackTraceHeader = "Stack Trace:\n"
-
 	ErrorStateFormat      = "\t%s: %+v\n"
-	ErrorStackTraceFormat = "\t%d - %s:%d\n"
 )
 
 type errorWrapper struct {
-	rootError  error
-	errorStack []stackItem
-	errorState map[string]interface{}
-}
-
-func WrapError(err error) error {
-	ew, ok := err.(*errorWrapper)
-
-	if !ok {
-		return NewError(err, make(map[string]interface{}))
-	}
-
-	ew.errorStack = append(ew.errorStack, newStackItem(2))
-	return ew
+	rootError       error
+	errorStackTrace *StackTrace
+	errorState      map[string]interface{}
 }
 
 func (ew errorWrapper) Error() string {
 	return ew.rootError.Error()
 }
 
-func (ew errorWrapper) StackTrace() string {
+func (ew errorWrapper) String() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(ErrorHeaderFormat, ew.Error()))
-	sb.WriteString(ErrorStateHeader)
 
+	sb.WriteString(ErrorStateHeader)
 	for stateKey, stateValue := range ew.errorState {
 		sb.WriteString(
 			fmt.Sprintf(
@@ -51,28 +38,59 @@ func (ew errorWrapper) StackTrace() string {
 	}
 
 	sb.WriteString(ErrorStackTraceHeader)
-	for i, stackItem := range ew.errorStack {
-		sb.WriteString(
-			fmt.Sprintf(
-				ErrorStackTraceFormat,
-				i,
-				stackItem.file,
-				stackItem.line,
-			),
-		)
-	}
-
+	sb.WriteString(ew.errorStackTrace.String())
 	return sb.String()
 }
 
-func (ew errorWrapper) RootError() error {
-	return ew.rootError
+func NewError(rootError error) error {
+	st := NewStackTrace()
+	st.AddStackItem()
+
+	return &errorWrapper{
+		rootError:       rootError,
+		errorStackTrace: st,
+		errorState:      make(map[string]interface{}),
+	}
 }
 
-func NewError(rootError error, state map[string]interface{}) error {
+func NewErrorWithState(rootError error, state map[string]interface{}) error {
+	st := NewStackTrace()
+	st.AddStackItem()
+
 	return &errorWrapper{
-		rootError:  rootError,
-		errorStack: []stackItem{newStackItem(2)},
-		errorState: state,
+		rootError:       rootError,
+		errorStackTrace: st,
+		errorState:      state,
 	}
+}
+
+func WrapError(err error) error {
+	ew, ok := err.(*errorWrapper)
+
+	if !ok {
+		return NewError(err)
+	}
+
+	ew.errorStackTrace.AddStackItem()
+	return ew
+}
+
+func BuildStackTrace(err error) string {
+	ew, ok := err.(*errorWrapper)
+
+	if !ok {
+		return err.Error()
+	}
+
+	return ew.String()
+}
+
+func RootError(err error) error {
+	ew, ok := err.(*errorWrapper)
+
+	if !ok {
+		return err
+	}
+
+	return ew.rootError
 }
