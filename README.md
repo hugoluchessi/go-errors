@@ -37,7 +37,7 @@ func Foo1(strFoo string, intFoo int64) (string, error) {
     value, err := Foo2(strFoo, intFoo)
 
     if err != nil {
-        return goerrors.WrapError(err)
+        return "", goerrors.WrapError(err)
     }
 
     return value, nil
