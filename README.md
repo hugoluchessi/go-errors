@@ -1,4 +1,4 @@
-# go-errors
+# goerrors
 Simple way to wrap errors and have a backtrace with state.
 
 ## Why use goerrors?
