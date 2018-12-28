@@ -19,7 +19,7 @@ func MainFoo(strFoo string, intFoo int64) {
     rootError := goerrors.RootError(err)
 
     // Now you can type assert, or use the error to make the correct handling
-    switch err.(type) {
+    switch rootError.(type) {
         case baz:
             // Do something cool here
         default:
